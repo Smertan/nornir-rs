@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-mod inventory;
+pub mod inventory;
 
 /// Formats the sum of two numbers as string.
 #[pyfunction]

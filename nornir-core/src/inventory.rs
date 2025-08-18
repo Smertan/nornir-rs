@@ -6,7 +6,6 @@ use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
-// use tracing::{info, trace, warn};
 
 
 pub trait BaseMethods {
@@ -109,7 +108,7 @@ impl<'de> Deserialize<'de> for ParentGroups {
             Ok(parent) => Ok(parent),
             Err(err) => {
                 log::error!("{}", err);
-                let err_msg = "May Groups should be an array of strings for use with `ParentGroups`";
+                let err_msg = "Groups should be an array of strings for use with `ParentGroups`";
                 log::error!("{err_msg}");
                 Err(D::Error::custom(err_msg))
             }
@@ -150,8 +149,22 @@ impl<'de> Visitor<'de> for ParentGroupsVisitor {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct Defaults(Option<serde_json::Value>);
+
+impl Deref for Defaults {
+    type Target = Option<serde_json::Value>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Defaults {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -181,12 +194,10 @@ impl Host {
             groups: None,
             data: None,
             connection_options: None,
-            defaults: Defaults(Some(serde_json::json!({
-                "platform": "linux"
-            }))),
-            // defaults: Some(Defaults{
-            //     platform: "linux".to_string(),
-            // }),
+            // defaults: Defaults(Some(serde_json::json!({
+            //     "platform": "linux"
+            // }))),
+            defaults: Defaults(None),
         }
     }
     pub fn builder(name: &str, hostname: &str) -> HostBuilder {
@@ -399,20 +410,39 @@ impl GroupBuilder {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-pub struct Hosts {
-    pub hosts: HashMap<String, Host>,
+pub struct Hosts(HashMap<String, Host>);
+// pub struct Hosts {
+//     pub hosts: HashMap<String, Host>,
+// }
+
+impl Deref for Hosts {
+    type Target = HashMap<String, Host>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Hosts {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 impl Hosts {
-    pub fn new() -> Hosts {
-        Hosts {
-            hosts: HashMap::new(),
-        }
+    pub fn new() -> Self {
+        Hosts(HashMap::new())
     }
+
+    // pub fn new() -> Hosts {
+    //     Hosts {
+    //         hosts: HashMap::new(),
+    //     }
+    // }
     pub fn add_host(&mut self, host: Host) {
-        self.hosts.insert(host.hostname.clone(), host);
+        self.insert(host.hostname.clone(), host);
     }
 }
+
 pub fn create_dummy_hosts() -> Result<(), std::io::Error> {
     let mut hosts = HashMap::new();
     // hosts.insert("hosts".to_string(), HashMap::new());
@@ -463,12 +493,11 @@ mod tests {
         assert_eq!(host.groups, None);
         assert_eq!(host.data, None);
         assert_eq!(host.connection_options, None);
-        assert_eq!(
-            host.defaults.0.unwrap(),
-            serde_json::json!({
-                "platform": "linux"
-            })
-        );
+        assert_eq!(host.defaults.as_ref(), None);
+            // serde_json::json!({
+            //     "platform": "linux"
+            // })
+        // );
     }
     #[test]
     fn test_hosts_new() {
@@ -491,7 +520,7 @@ mod tests {
             // Tries to get the hosts object from the hosts map or creates an entry with an empty hashmap
             hosts.add_host(host);
         }
-        assert_eq!(hosts.hosts.len(), 10);
+        assert_eq!(hosts.len(), 10);
     }
 
     #[test]
