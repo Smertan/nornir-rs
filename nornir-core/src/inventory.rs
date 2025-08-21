@@ -1,3 +1,4 @@
+use nornir_core_derive::{DerefMacro, DerefMutMacro};
 use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize}; // , Serializer};
@@ -6,7 +7,6 @@ use std::fmt;
 use std::fs::File;
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
-
 
 pub trait BaseMethods {
     fn schema() -> String
@@ -38,7 +38,7 @@ pub trait BaseBuilderHost {
     fn groups(self, groups: ParentGroups) -> Self;
 
     /// Updates the data and returns the updated builder.
-    fn data(self, data: Vec<String>) -> Self;
+    fn data(self, data: Data) -> Self;
 
     /// Updates the connection options and returns the updated builder.
     fn connection_options(self, options: ConnectionOptions) -> Self;
@@ -48,6 +48,10 @@ pub trait BaseBuilderHost {
 
     /// Builds the struct from the updated builder and returns final struct object.
     fn build(self) -> Self::Output;
+}
+
+pub trait DerefTarget {
+    type Target;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
@@ -64,7 +68,7 @@ impl ConnectionOptions {
     pub fn new(hostname: &str) -> Self {
         ConnectionOptions {
             hostname: hostname.to_string(),
-            port: Some(22),
+            port: None,
             username: None,
             password: None,
             platform: None,
@@ -150,10 +154,10 @@ impl<'de> Visitor<'de> for ParentGroupsVisitor {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
-pub struct Defaults(Option<serde_json::Value>);
+pub struct Defaults(serde_json::Value);
 
 impl Deref for Defaults {
-    type Target = Option<serde_json::Value>;
+    type Target = serde_json::Value;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -166,6 +170,22 @@ impl DerefMut for Defaults {
 }
 
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+pub struct Data(serde_json::Value);
+
+impl Deref for Data {
+    type Target = serde_json::Value;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Data {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Host {
@@ -176,10 +196,11 @@ pub struct Host {
     pub password: Option<String>,
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
-    pub data: Option<Vec<String>>,
+    pub data: Option<Data>,
+    // pub data: Option<Vec<String>>,
     pub connection_options: Option<ConnectionOptions>,
     // #[serde(flatten)]
-    pub defaults: Defaults,
+    pub defaults: Option<Defaults>,
 }
 
 impl Host {
@@ -187,17 +208,14 @@ impl Host {
         Host {
             name: name.to_string(),
             hostname: hostname.to_string(),
-            port: Some(22),
+            port: None,
             username: None,
             password: None,
             platform: None,
             groups: None,
             data: None,
             connection_options: None,
-            // defaults: Defaults(Some(serde_json::json!({
-            //     "platform": "linux"
-            // }))),
-            defaults: Defaults(None),
+            defaults: None,
         }
     }
     pub fn builder(name: &str, hostname: &str) -> HostBuilder {
@@ -207,7 +225,6 @@ impl Host {
 
 impl BaseMethods for Host {}
 
-
 pub struct HostBuilder {
     name: String,
     hostname: String,
@@ -216,9 +233,10 @@ pub struct HostBuilder {
     password: Option<String>,
     platform: Option<String>,
     groups: Option<ParentGroups>,
-    data: Option<Vec<String>>,
+    data: Option<Data>,
+    // data: Option<Vec<String>>,
     connection_options: Option<ConnectionOptions>,
-    defaults: Defaults,
+    defaults: Option<Defaults>,
 }
 
 impl HostBuilder {
@@ -226,16 +244,14 @@ impl HostBuilder {
         HostBuilder {
             name: name.to_string(),
             hostname: hostname.to_string(),
-            port: Some(22),
+            port: None,
             username: None,
             password: None,
             platform: None,
             groups: None,
             data: None,
             connection_options: None,
-            defaults: Defaults(Some(serde_json::json!({
-                "platform": "linux"
-            }))),
+            defaults: None,
         }
     }
 }
@@ -267,7 +283,7 @@ impl BaseBuilderHost for HostBuilder {
         self
     }
 
-    fn data(mut self, data: Vec<String>) -> Self {
+    fn data(mut self, data: Data) -> Self {
         self.data = Some(data);
         self
     }
@@ -278,7 +294,7 @@ impl BaseBuilderHost for HostBuilder {
     }
 
     fn defaults(mut self, defaults: Defaults) -> Self {
-        self.defaults = defaults;
+        self.defaults = Some(defaults);
         self
     }
 
@@ -305,23 +321,23 @@ pub struct Group {
     pub password: Option<String>,
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
-    pub data: Option<Vec<String>>,
+    pub data: Option<Data>,
     pub connection_options: Option<ConnectionOptions>,
-    pub defaults: Defaults,
+    pub defaults: Option<Defaults>,
 }
 
 impl Group {
     pub fn new(hostname: &str) -> Group {
         Group {
             hostname: hostname.to_string(),
-            port: Some(22),
+            port: None,
             username: None,
             password: None,
             platform: None,
             groups: None,
             data: None,
             connection_options: None,
-            defaults: Defaults(None),
+            defaults: None,
         }
     }
     pub fn builder(hostname: &str) -> GroupBuilder {
@@ -336,9 +352,9 @@ pub struct GroupBuilder {
     pub password: Option<String>,
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
-    pub data: Option<Vec<String>>,
+    pub data: Option<Data>,
     pub connection_options: Option<ConnectionOptions>,
-    pub defaults: Defaults,
+    pub defaults: Option<Defaults>,
 }
 
 impl BaseBuilderHost for GroupBuilder {
@@ -365,7 +381,7 @@ impl BaseBuilderHost for GroupBuilder {
         self.groups = Some(groups);
         self
     }
-    fn data(mut self, data: Vec<String>) -> Self {
+    fn data(mut self, data: Data) -> Self {
         self.data = Some(data);
         self
     }
@@ -374,7 +390,7 @@ impl BaseBuilderHost for GroupBuilder {
         self
     }
     fn defaults(mut self, defaults: Defaults) -> Self {
-        self.defaults = defaults;
+        self.defaults = Some(defaults);
         self
     }
     fn build(self) -> Group {
@@ -396,48 +412,33 @@ impl GroupBuilder {
     pub fn new(hostname: &str) -> Self {
         GroupBuilder {
             hostname: hostname.to_string(),
-            port: Some(22),
+            port: None,
             username: None,
             password: None,
             platform: None,
             groups: None,
             data: None,
             connection_options: None,
-            defaults: Defaults(None),
+            defaults: None,
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct Hosts(HashMap<String, Host>);
-// pub struct Hosts {
-//     pub hosts: HashMap<String, Host>,
-// }
+pub type HostsTarget = HashMap<String, Host>;
 
-impl Deref for Hosts {
+impl DerefTarget for Hosts {
     type Target = HashMap<String, Host>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
 }
 
-impl DerefMut for Hosts {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
+#[serde(deny_unknown_fields)]
+pub struct Hosts(HostsTarget);
 
 impl Hosts {
     pub fn new() -> Self {
         Hosts(HashMap::new())
     }
 
-    // pub fn new() -> Hosts {
-    //     Hosts {
-    //         hosts: HashMap::new(),
-    //     }
-    // }
     pub fn add_host(&mut self, host: Host) {
         self.insert(host.hostname.clone(), host);
     }
@@ -457,7 +458,10 @@ pub fn create_dummy_hosts() -> Result<(), std::io::Error> {
         .username(&format!("user{}", i))
         .password(&format!("password{}", i))
         .platform(if i % 2 == 0 { "linux" } else { "windows" })
-        .data(vec![format!("data for host {}", i)])
+        .data(Data(serde_json::json!(vec![format!(
+            "data for host {}",
+            i
+        )])))
         .groups(groups)
         .connection_options(ConnectionOptions::new(&format!("host{}.example.com", i)))
         .build();
@@ -486,7 +490,7 @@ mod tests {
     fn test_host_new() {
         let host = Host::new("example.com", "example.com");
         assert_eq!(host.hostname, "example.com");
-        assert_eq!(host.port, Some(22));
+        assert_eq!(host.port, None);
         assert_eq!(host.username, None);
         assert_eq!(host.password, None);
         assert_eq!(host.platform, None);
@@ -494,9 +498,9 @@ mod tests {
         assert_eq!(host.data, None);
         assert_eq!(host.connection_options, None);
         assert_eq!(host.defaults.as_ref(), None);
-            // serde_json::json!({
-            //     "platform": "linux"
-            // })
+        // serde_json::json!({
+        //     "platform": "linux"
+        // })
         // );
     }
     #[test]
@@ -513,7 +517,10 @@ mod tests {
             .username(&format!("user{}", i))
             .password(&format!("password{}", i))
             .platform(if i % 2 == 0 { "linux" } else { "windows" })
-            .data(vec![format!("data for host {}", i)])
+            .data(Data(serde_json::json!(vec![format!(
+                "data for host {}",
+                i
+            )])))
             .connection_options(ConnectionOptions::new(&format!("host{}.example.com", i)))
             .build();
 
