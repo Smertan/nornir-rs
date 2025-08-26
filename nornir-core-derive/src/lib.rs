@@ -31,6 +31,18 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, parse_macro_input};
 
+/// Generates an implementation of the `Deref` trait for the given type.
+///
+/// This function is used as a procedural macro to automatically derive the `Deref` trait
+/// for a struct. It creates an implementation that dereferences to the first field of the struct.
+///
+/// # Parameters
+///
+/// * `input`: A `TokenStream` representing the input tokens of the derive macro.
+///
+/// # Returns
+///
+/// A `TokenStream` containing the generated implementation of the `Deref` trait.
 #[proc_macro_derive(DerefMacro)]
 pub fn derive_deref(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -54,6 +66,19 @@ pub fn derive_deref(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Generates an implementation of the `DerefMut` trait for the given type.
+///
+/// This function is used as a procedural macro to automatically derive the `DerefMut` trait
+/// for a struct. It creates an implementation that allows mutable dereferencing to the first
+/// field of the struct.
+///
+/// # Parameters
+///
+/// * `input`: A `TokenStream` representing the input tokens of the derive macro.
+///
+/// # Returns
+///
+/// A `TokenStream` containing the generated implementation of the `DerefMut` trait.
 #[proc_macro_derive(DerefMutMacro)]
 pub fn derive_deref_mut(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
