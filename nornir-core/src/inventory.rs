@@ -82,6 +82,7 @@ impl DerefTarget for Extras {
     type Target = serde_json::Value;
 }
 
+/// The DataExtra struct is a wrapper for serde_json::Value, any json data is accepted.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro)]
 pub struct Extras(serde_json::Value);
 
@@ -161,6 +162,8 @@ impl DerefTarget for Data {
     type Target = serde_json::Value;
 }
 
+
+/// The Data struct is a wrapper for serde_json::Value, any json data is accepted.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro)]
 pub struct Data(serde_json::Value);
 
@@ -422,6 +425,7 @@ impl DerefTarget for Hosts {
     type Target = HashMap<String, Host>;
 }
 
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
 #[serde(deny_unknown_fields)]
 pub struct Hosts(HostsTarget);
@@ -437,6 +441,7 @@ impl Hosts {
     }
 }
 
+impl BaseMethods for Hosts {}
 
 #[cfg(test)]
 mod tests {
@@ -465,7 +470,6 @@ mod tests {
 
             let hostname = host.name.clone();
 
-            // Tries to get the hosts object from the hosts map or creates an entry with an empty hashmap.
             hosts.insert(hostname, host);
         }
 
@@ -506,7 +510,6 @@ mod tests {
             .connection_options(ConnectionOptions::new())
             .build();
 
-            // Tries to get the hosts object from the hosts map or creates an entry with an empty hashmap
             hosts.add_host(host);
         }
         assert_eq!(hosts.len(), 10);
