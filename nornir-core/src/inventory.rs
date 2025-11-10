@@ -83,10 +83,12 @@ impl DerefTarget for Extras {
 }
 
 /// The DataExtra struct is a wrapper for serde_json::Value, any json data is accepted.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro,
+)]
 pub struct Extras(serde_json::Value);
 
-impl DerefTarget for ParentGroups{
+impl DerefTarget for ParentGroups {
     type Target = Vec<String>;
 }
 
@@ -154,17 +156,19 @@ impl DerefTarget for Defaults {
     type Target = serde_json::Value;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro,
+)]
 pub struct Defaults(serde_json::Value);
-
 
 impl DerefTarget for Data {
     type Target = serde_json::Value;
 }
 
-
 /// The Data struct is a wrapper for serde_json::Value, any json data is accepted.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro,
+)]
 pub struct Data(serde_json::Value);
 
 impl Data {
@@ -426,7 +430,6 @@ impl DerefTarget for Hosts {
     type Target = HashMap<String, Host>;
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
 #[serde(deny_unknown_fields)]
 pub struct Hosts(HostsTarget);
@@ -451,15 +454,15 @@ impl DerefTarget for Groups {
     type Target = HashMap<String, Group>;
 }
 
-
 /// The TransformFunctionOptions struct is a wrapper for serde_json::Value, any json data is accepted.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro,
+)]
 pub struct TransformFunctionOptions(serde_json::Value);
 
 impl DerefTarget for TransformFunctionOptions {
     type Target = serde_json::Value;
 }
-
 
 pub struct Inventory {
     pub hosts: Hosts,
@@ -480,20 +483,18 @@ mod tests {
         for i in 1..=10 {
             let mut groups = ParentGroups::new();
             groups.push("cisco".to_string());
-            let host = Host::builder(
-                &format!("host{}.example.com", i)
-            )
-            .port(2200 + i as u16)
-            .username(&format!("user{}", i))
-            .password(&format!("password{}", i))
-            .platform(if i % 2 == 0 { "linux" } else { "windows" })
-            .data(Data(serde_json::json!(vec![format!(
-                "data for host {}",
-                i
-            )])))
-            .groups(groups)
-            .connection_options(ConnectionOptions::new())
-            .build();
+            let host = Host::builder(&format!("host{}.example.com", i))
+                .port(2200 + i as u16)
+                .username(&format!("user{}", i))
+                .password(&format!("password{}", i))
+                .platform(if i % 2 == 0 { "linux" } else { "windows" })
+                .data(Data(serde_json::json!(vec![format!(
+                    "data for host {}",
+                    i
+                )])))
+                .groups(groups)
+                .connection_options(ConnectionOptions::new())
+                .build();
 
             let hostname = host.name.clone();
 
@@ -523,19 +524,17 @@ mod tests {
 
         // Add 10 hosts to the hosts map with dummy data
         for i in 1..=10 {
-            let host = Host::builder(
-                &format!("host{}.example.com", i)
-            )
-            .port(2200 + i as u16)
-            .username(&format!("user{}", i))
-            .password(&format!("password{}", i))
-            .platform(if i % 2 == 0 { "linux" } else { "windows" })
-            .data(Data(serde_json::json!(vec![format!(
-                "data for host {}",
-                i
-            )])))
-            .connection_options(ConnectionOptions::new())
-            .build();
+            let host = Host::builder(&format!("host{}.example.com", i))
+                .port(2200 + i as u16)
+                .username(&format!("user{}", i))
+                .password(&format!("password{}", i))
+                .platform(if i % 2 == 0 { "linux" } else { "windows" })
+                .data(Data(serde_json::json!(vec![format!(
+                    "data for host {}",
+                    i
+                )])))
+                .connection_options(ConnectionOptions::new())
+                .build();
 
             hosts.add_host(host);
         }
