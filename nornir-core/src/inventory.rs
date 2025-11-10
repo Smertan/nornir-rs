@@ -304,6 +304,7 @@ impl BaseBuilderHost for HostBuilder {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Group {
     pub hostname: Option<String>,
     pub port: Option<u16>,
@@ -442,6 +443,32 @@ impl Hosts {
 }
 
 impl BaseMethods for Hosts {}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
+pub struct Groups(HashMap<String, Group>);
+
+impl DerefTarget for Groups {
+    type Target = HashMap<String, Group>;
+}
+
+
+/// The TransformFunctionOptions struct is a wrapper for serde_json::Value, any json data is accepted.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro)]
+pub struct TransformFunctionOptions(serde_json::Value);
+
+impl DerefTarget for TransformFunctionOptions {
+    type Target = serde_json::Value;
+}
+
+
+pub struct Inventory {
+    pub hosts: Hosts,
+    pub groups: Option<Groups>,
+    pub defaults: Option<Defaults>,
+    // TODO: add transform_function
+    // transform_function: Option<TransformFunction>,
+    pub transform_function_options: Option<TransformFunctionOptions>,
+}
 
 #[cfg(test)]
 mod tests {
