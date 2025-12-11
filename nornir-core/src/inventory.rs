@@ -2,7 +2,7 @@ use nornir_core_derive::{DerefMacro, DerefMutMacro};
 use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 
 pub trait BaseMethods {
@@ -138,14 +138,18 @@ impl<'de> Visitor<'de> for ParentGroupsVisitor {
 
     /// This method is used to handle custom deserialization logic for
     /// sequences. It returns a list of unique strings from the sequence.
+    /// 
+    /// The vector implementation ensures that duplicate strings are not added to the
+    /// and preserves the order of the first occurrence of each string.
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {
-        let mut groups: HashSet<String> = HashSet::new();
+        let mut groups = Vec::new();
         while let Some(value) = seq.next_element()? {
-            // println!("{value}");
-            groups.insert(value);
+            if !groups.contains(&value){
+                groups.push(value);
+            }
         }
 
         Ok(ParentGroups(groups.into_iter().collect()))
@@ -558,6 +562,48 @@ mod tests {
         assert_eq!(serialized, "[\"cisco\",\"Juniper\",\"arista\"]");
         let mut deserialized: ParentGroups = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.sort(), ParentGroups(groups).sort());
+    }
+
+    #[test]
+    fn test_parent_groups_deduplication() {
+        // Test that duplicate groups are removed during deserialization
+        let groups_with_duplicates = vec![
+            "cisco".to_string(),
+            "juniper".to_string(),
+            "cisco".to_string(),  // duplicate
+            "arista".to_string(),
+            "juniper".to_string(), // duplicate
+            "cisco".to_string(),   // duplicate
+        ];
+        
+        let serialized = serde_json::to_string(&groups_with_duplicates).unwrap();
+        let deserialized: ParentGroups = serde_json::from_str(&serialized).unwrap();
+        
+        // Should only contain unique values in order of first occurrence
+        assert_eq!(deserialized.len(), 3);
+        assert_eq!(deserialized[0], "cisco");
+        assert_eq!(deserialized[1], "juniper");
+        assert_eq!(deserialized[2], "arista");
+    }
+
+    #[test]
+    fn test_parent_groups_preserves_order() {
+        // Test that the order of first occurrence is preserved
+        let groups = vec![
+            "zebra".to_string(),
+            "apple".to_string(),
+            "zebra".to_string(),  // duplicate
+            "banana".to_string(),
+        ];
+        
+        let serialized = serde_json::to_string(&groups).unwrap();
+        let deserialized: ParentGroups = serde_json::from_str(&serialized).unwrap();
+        
+        // Should preserve order of first occurrence
+        assert_eq!(deserialized.len(), 3);
+        assert_eq!(deserialized[0], "zebra");
+        assert_eq!(deserialized[1], "apple");
+        assert_eq!(deserialized[2], "banana");
     }
 
     /// Tests the ParentGroups deserialization with an error.
