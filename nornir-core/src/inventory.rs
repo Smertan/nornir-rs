@@ -41,7 +41,7 @@ pub trait BaseBuilderHost {
     fn data(self, data: Data) -> Self;
 
     /// Updates the connection options and returns the updated builder.
-    fn connection_options(self, options: ConnectionOptions) -> Self;
+    fn connection_options(self, name: String, options: ConnectionOptions) -> Self;
 
     /// Updates the defaults and returns the updated builder.
     fn defaults(self, defaults: Defaults) -> Self;
@@ -192,7 +192,7 @@ pub struct Host {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<ConnectionOptions>,
+    pub connection_options: Option<HashMap<String, ConnectionOptions>>,
     pub defaults: Option<Defaults>,
 }
 
@@ -218,6 +218,8 @@ impl Host {
 
 impl BaseMethods for Host {}
 
+
+
 pub struct HostBuilder {
     name: String,
     hostname: Option<String>,
@@ -227,7 +229,7 @@ pub struct HostBuilder {
     platform: Option<String>,
     groups: Option<ParentGroups>,
     data: Option<Data>,
-    connection_options: Option<ConnectionOptions>,
+    connection_options: Option<HashMap<String, ConnectionOptions>>,
     defaults: Option<Defaults>,
 }
 
@@ -286,8 +288,11 @@ impl BaseBuilderHost for HostBuilder {
         self
     }
 
-    fn connection_options(mut self, options: ConnectionOptions) -> Self {
-        self.connection_options = Some(options);
+    fn connection_options(mut self, name: String, options: ConnectionOptions) -> Self {
+        if self.connection_options.is_none() {
+            self.connection_options = Some(HashMap::new());
+        }
+        self.connection_options.as_mut().unwrap().insert(name, options);
         self
     }
 
@@ -321,7 +326,7 @@ pub struct Group {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<ConnectionOptions>,
+    pub connection_options: Option<HashMap<String, ConnectionOptions>>,
     pub defaults: Option<Defaults>,
 }
 
@@ -352,7 +357,7 @@ pub struct GroupBuilder {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<ConnectionOptions>,
+    pub connection_options: Option<HashMap<String, ConnectionOptions>>,
     pub defaults: Option<Defaults>,
 }
 
@@ -389,8 +394,11 @@ impl BaseBuilderHost for GroupBuilder {
         self.data = Some(data);
         self
     }
-    fn connection_options(mut self, options: ConnectionOptions) -> Self {
-        self.connection_options = Some(options);
+    fn connection_options(mut self, name: String, options: ConnectionOptions) -> Self {
+        if self.connection_options.is_none() {
+            self.connection_options = Some(HashMap::new());
+        }
+        self.connection_options.as_mut().unwrap().insert(name, options);
         self
     }
     fn defaults(mut self, defaults: Defaults) -> Self {
@@ -497,7 +505,7 @@ mod tests {
                     i
                 )])))
                 .groups(groups)
-                .connection_options(ConnectionOptions::new())
+                .connection_options(String::from("Cisco"), ConnectionOptions::new())
                 .build();
 
             let hostname = host.name.clone();
@@ -537,7 +545,7 @@ mod tests {
                     "data for host {}",
                     i
                 )])))
-                .connection_options(ConnectionOptions::new())
+                .connection_options(String::from("Juniper"), ConnectionOptions::new())
                 .build();
 
             hosts.add_host(host);
