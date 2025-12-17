@@ -4,6 +4,8 @@ use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
+
 
 pub trait BaseMethods {
     fn schema() -> String
@@ -44,7 +46,7 @@ pub trait BaseBuilderHost {
     fn connection_options(self, name: String, options: ConnectionOptions) -> Self;
 
     /// Updates the defaults and returns the updated builder.
-    fn defaults(self, defaults: Defaults) -> Self;
+    fn defaults(self, defaults: &Arc<Defaults>) -> Self;
 
     /// Builds the struct from the updated builder and returns final struct object.
     fn build(self) -> Self::Output;
@@ -94,7 +96,11 @@ impl DerefTarget for ParentGroups {
 
 /// The ParentGroups struct is a wrapped vector of strings.
 ///
-/// The ParentGroups struct implements Deref and DerefMut for easy access to the underlying vector.
+/// It stores a list of strings representing the groups the host
+/// belongs to.
+///
+/// The ParentGroups struct implements Deref and DerefMut for easy
+/// access to the underlying vector.
 #[derive(Debug, Clone, Serialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro)]
 pub struct ParentGroups(Vec<String>);
 
@@ -138,7 +144,7 @@ impl<'de> Visitor<'de> for ParentGroupsVisitor {
 
     /// This method is used to handle custom deserialization logic for
     /// sequences. It returns a list of unique strings from the sequence.
-    /// 
+    ///
     /// The vector implementation ensures that duplicate strings are not added to the
     /// and preserves the order of the first occurrence of each string.
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -147,7 +153,7 @@ impl<'de> Visitor<'de> for ParentGroupsVisitor {
     {
         let mut groups = Vec::new();
         while let Some(value) = seq.next_element()? {
-            if !groups.contains(&value){
+            if !groups.contains(&value) {
                 groups.push(value);
             }
         }
@@ -193,7 +199,7 @@ pub struct Host {
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
     pub connection_options: Option<HashMap<String, ConnectionOptions>>,
-    pub defaults: Option<Defaults>,
+    pub defaults: Option<Arc<Defaults>>,
 }
 
 impl Host {
@@ -218,8 +224,6 @@ impl Host {
 
 impl BaseMethods for Host {}
 
-
-
 pub struct HostBuilder {
     name: String,
     hostname: Option<String>,
@@ -230,7 +234,7 @@ pub struct HostBuilder {
     groups: Option<ParentGroups>,
     data: Option<Data>,
     connection_options: Option<HashMap<String, ConnectionOptions>>,
-    defaults: Option<Defaults>,
+    defaults: Option<Arc<Defaults>>,
 }
 
 impl HostBuilder {
@@ -292,12 +296,15 @@ impl BaseBuilderHost for HostBuilder {
         if self.connection_options.is_none() {
             self.connection_options = Some(HashMap::new());
         }
-        self.connection_options.as_mut().unwrap().insert(name, options);
+        self.connection_options
+            .as_mut()
+            .unwrap()
+            .insert(name, options);
         self
     }
 
-    fn defaults(mut self, defaults: Defaults) -> Self {
-        self.defaults = Some(defaults);
+    fn defaults(mut self, defaults: &Arc<Defaults>) -> Self {
+        self.defaults = Some(Arc::clone(defaults));
         self
     }
 
@@ -327,7 +334,7 @@ pub struct Group {
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
     pub connection_options: Option<HashMap<String, ConnectionOptions>>,
-    pub defaults: Option<Defaults>,
+    pub defaults: Option<Arc<Defaults>>,
 }
 
 impl Group {
@@ -358,7 +365,7 @@ pub struct GroupBuilder {
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
     pub connection_options: Option<HashMap<String, ConnectionOptions>>,
-    pub defaults: Option<Defaults>,
+    pub defaults: Option<Arc<Defaults>>,
 }
 
 impl BaseBuilderHost for GroupBuilder {
@@ -398,11 +405,14 @@ impl BaseBuilderHost for GroupBuilder {
         if self.connection_options.is_none() {
             self.connection_options = Some(HashMap::new());
         }
-        self.connection_options.as_mut().unwrap().insert(name, options);
+        self.connection_options
+            .as_mut()
+            .unwrap()
+            .insert(name, options);
         self
     }
-    fn defaults(mut self, defaults: Defaults) -> Self {
-        self.defaults = Some(defaults);
+    fn defaults(mut self, defaults: &Arc<Defaults>) -> Self {
+        self.defaults = Some(Arc::clone(defaults));
         self
     }
     fn build(self) -> Group {
@@ -578,15 +588,15 @@ mod tests {
         let groups_with_duplicates = vec![
             "cisco".to_string(),
             "juniper".to_string(),
-            "cisco".to_string(),  // duplicate
+            "cisco".to_string(), // duplicate
             "arista".to_string(),
             "juniper".to_string(), // duplicate
             "cisco".to_string(),   // duplicate
         ];
-        
+
         let serialized = serde_json::to_string(&groups_with_duplicates).unwrap();
         let deserialized: ParentGroups = serde_json::from_str(&serialized).unwrap();
-        
+
         // Should only contain unique values in order of first occurrence
         assert_eq!(deserialized.len(), 3);
         assert_eq!(deserialized[0], "cisco");
@@ -600,13 +610,13 @@ mod tests {
         let groups = vec![
             "zebra".to_string(),
             "apple".to_string(),
-            "zebra".to_string(),  // duplicate
+            "zebra".to_string(), // duplicate
             "banana".to_string(),
         ];
-        
+
         let serialized = serde_json::to_string(&groups).unwrap();
         let deserialized: ParentGroups = serde_json::from_str(&serialized).unwrap();
-        
+
         // Should preserve order of first occurrence
         assert_eq!(deserialized.len(), 3);
         assert_eq!(deserialized[0], "zebra");
@@ -631,4 +641,6 @@ mod tests {
             }
         }
     }
+
+    // TODO: Create a test to verify the Host defaults deserialization
 }
