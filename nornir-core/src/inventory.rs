@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
-
 pub trait BaseMethods {
     fn schema() -> String
     where
