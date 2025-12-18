@@ -66,6 +66,12 @@ pub struct ConnectionOptions {
     pub extras: Option<Extras>,
 }
 
+impl Default for ConnectionOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionOptions {
     pub fn new() -> Self {
         ConnectionOptions {
@@ -102,6 +108,12 @@ impl DerefTarget for ParentGroups {
 /// access to the underlying vector.
 #[derive(Debug, Clone, Serialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro)]
 pub struct ParentGroups(Vec<String>);
+
+impl Default for ParentGroups {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ParentGroups {
     pub fn new() -> Self {
@@ -336,6 +348,12 @@ pub struct Group {
     pub defaults: Option<Arc<Defaults>>,
 }
 
+impl Default for Group {
+    fn default() -> Group {
+        Group::new()
+    }
+}
+
 impl Group {
     pub fn new() -> Group {
         Group {
@@ -454,6 +472,12 @@ impl DerefTarget for Hosts {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
 #[serde(deny_unknown_fields)]
 pub struct Hosts(HostsTarget);
+
+impl Default for Hosts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Hosts {
     pub fn new() -> Self {
