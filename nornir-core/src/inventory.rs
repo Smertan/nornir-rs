@@ -509,6 +509,7 @@ impl DerefTarget for TransformFunctionOptions {
     type Target = serde_json::Value;
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Inventory {
     pub hosts: Hosts,
     pub groups: Option<Groups>,
@@ -516,6 +517,80 @@ pub struct Inventory {
     // TODO: add transform_function
     // transform_function: Option<TransformFunction>,
     pub transform_function_options: Option<TransformFunctionOptions>,
+}
+
+
+impl Inventory {
+    pub fn new() -> Inventory {
+        Inventory {
+            hosts: Hosts::new(),
+            groups: None,
+            defaults: None,
+            transform_function_options: None,
+        }
+    }
+
+    pub fn builder() -> InventoryBuilder {
+        InventoryBuilder::new()
+    }
+}
+
+impl Default for Inventory {
+    fn default() -> Self {
+        Inventory::new()
+    }
+}
+pub struct InventoryBuilder {
+    pub hosts: Option<Hosts>,
+    pub groups: Option<Groups>,
+    pub defaults: Option<Defaults>,
+    pub transform_function_options: Option<TransformFunctionOptions>,
+}
+
+impl InventoryBuilder {
+    pub fn new() -> InventoryBuilder {
+        InventoryBuilder {
+            hosts: None,
+            groups: None,
+            defaults: None,
+            transform_function_options: None,
+        }
+    }
+
+    pub fn hosts(mut self, hosts: Hosts) -> Self {
+        self.hosts = Some(hosts);
+        self
+    }
+
+    pub fn groups(mut self, groups: Groups) -> Self {
+        self.groups = Some(groups);
+        self
+    }
+
+    pub fn defaults(mut self, defaults: Defaults) -> Self {
+        self.defaults = Some(defaults);
+        self
+    }
+
+    pub fn transform_function_options(mut self, options: TransformFunctionOptions) -> Self {
+        self.transform_function_options = Some(options);
+        self
+    }
+
+    pub fn build(self) -> Inventory {
+        Inventory {
+            hosts: self.hosts.unwrap_or_default(),
+            groups: self.groups,
+            defaults: self.defaults,
+            transform_function_options: self.transform_function_options,
+        }
+    }
+}
+
+impl Default for InventoryBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
