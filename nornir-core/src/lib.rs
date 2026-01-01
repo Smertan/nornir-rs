@@ -87,8 +87,15 @@ impl<V> Deref for CustomTreeMap<V> {
 
 impl<V: fmt::Debug> fmt::Debug for CustomTreeMap<V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Use write! to format the fields directly without the struct wrapper
-        write!(f, "{:?}", self.0)
+        if f.alternate() {
+            // pretty print the map using the debug_struct builder pattern
+            f.debug_struct("CustomTreeMap")
+            .field("BTreeMap", &self.0)
+            .finish()
+        } else {
+            // Use write! to format the fields directly without the struct wrapper
+            write!(f, "{:?}", self.0)
+        }
     }
 }
 
