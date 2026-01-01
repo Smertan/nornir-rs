@@ -56,6 +56,7 @@ pub trait DerefTarget {
     type Target;
 }
 
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema)]
 pub struct ConnectionOptions {
     pub hostname: Option<String>,
