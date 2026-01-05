@@ -1,8 +1,8 @@
+use crate::CustomTreeMap;
 use nornir_core_derive::{DerefMacro, DerefMutMacro};
 use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
@@ -210,7 +210,7 @@ pub struct Host {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<BTreeMap<String, ConnectionOptions>>,
+    pub connection_options: Option<CustomTreeMap<ConnectionOptions>>,
     pub defaults: Option<Arc<Defaults>>,
 }
 
@@ -245,7 +245,7 @@ pub struct HostBuilder {
     platform: Option<String>,
     groups: Option<ParentGroups>,
     data: Option<Data>,
-    connection_options: Option<BTreeMap<String, ConnectionOptions>>,
+    connection_options: Option<CustomTreeMap<ConnectionOptions>>,
     defaults: Option<Arc<Defaults>>,
 }
 
@@ -306,7 +306,7 @@ impl BaseBuilderHost for HostBuilder {
 
     fn connection_options(mut self, name: String, options: ConnectionOptions) -> Self {
         if self.connection_options.is_none() {
-            self.connection_options = Some(BTreeMap::new());
+            self.connection_options = Some(CustomTreeMap::new());
         }
         self.connection_options
             .as_mut()
@@ -345,7 +345,7 @@ pub struct Group {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<BTreeMap<String, ConnectionOptions>>,
+    pub connection_options: Option<CustomTreeMap<ConnectionOptions>>,
     pub defaults: Option<Arc<Defaults>>,
 }
 
@@ -382,7 +382,7 @@ pub struct GroupBuilder {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<BTreeMap<String, ConnectionOptions>>,
+    pub connection_options: Option<CustomTreeMap<ConnectionOptions>>,
     pub defaults: Option<Arc<Defaults>>,
 }
 
@@ -421,7 +421,7 @@ impl BaseBuilderHost for GroupBuilder {
     }
     fn connection_options(mut self, name: String, options: ConnectionOptions) -> Self {
         if self.connection_options.is_none() {
-            self.connection_options = Some(BTreeMap::new());
+            self.connection_options = Some(CustomTreeMap::new());
         }
         self.connection_options
             .as_mut()
@@ -464,10 +464,10 @@ impl GroupBuilder {
     }
 }
 
-pub type HostsTarget = BTreeMap<String, Host>;
+pub type HostsTarget = CustomTreeMap<Host>;
 
 impl DerefTarget for Hosts {
-    type Target = BTreeMap<String, Host>;
+    type Target = CustomTreeMap<Host>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
@@ -482,7 +482,7 @@ impl Default for Hosts {
 
 impl Hosts {
     pub fn new() -> Self {
-        Hosts(BTreeMap::new())
+        Hosts(CustomTreeMap::new())
     }
 
     pub fn add_host(&mut self, host: Host) {
@@ -494,10 +494,10 @@ impl Hosts {
 impl BaseMethods for Hosts {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
-pub struct Groups(BTreeMap<String, Group>);
+pub struct Groups(CustomTreeMap<Group>);
 
 impl DerefTarget for Groups {
-    type Target = BTreeMap<String, Group>;
+    type Target = CustomTreeMap<Group>;
 }
 
 /// The TransformFunctionOptions struct is a wrapper for serde_json::Value, any json data is accepted.
@@ -599,8 +599,8 @@ mod tests {
     use super::*;
 
     fn create_dummy_hosts() -> Result<Hosts, std::io::Error> {
-        let mut hosts = Hosts(BTreeMap::new());
-        // hosts.insert("hosts".to_string(), BTreeMap::new());
+        let mut hosts = Hosts(CustomTreeMap::new());
+        // hosts.insert("hosts".to_string(), CustomTreeMap::new());
         for i in 1..=10 {
             let mut groups = ParentGroups::new();
             groups.push("cisco".to_string());
