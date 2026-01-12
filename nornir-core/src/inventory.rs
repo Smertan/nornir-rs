@@ -520,6 +520,7 @@ pub struct Inventory {
     pub transform_function_options: Option<TransformFunctionOptions>,
 }
 
+impl BaseMethods for Inventory {}
 
 impl Inventory {
     pub fn new() -> Inventory {

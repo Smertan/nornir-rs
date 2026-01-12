@@ -1,12 +1,15 @@
 use natord::compare;
 use pyo3::prelude::*;
-use schemars::JsonSchema;
+// use schemars::JsonSchema;
+use schemars::{SchemaGenerator, Schema, JsonSchema, json_schema};
+
 // use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::ops::Deref;
+use std::borrow::Cow;
 pub mod inventory;
 
 
@@ -79,7 +82,7 @@ impl PartialOrd for NatString {
 /// tree.insert("host10", "value10".to_string());
 /// // Keys will be ordered naturally: host1, host10
 /// ```
-#[derive(Clone, JsonSchema, PartialEq, Eq,Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq,Serialize, Deserialize)] // JsonSchema
 pub struct CustomTreeMap<V>(BTreeMap<NatString, V>);
 
 // impl<V> Deref for CustomTreeMap<V> {
@@ -214,22 +217,22 @@ impl<V> Default for CustomTreeMap<V> {
 //     }
 // }
 
-// impl<V> JsonSchema for CustomTreeMap<V>
-// where
-//     V: JsonSchema,
-// {
-//     fn schema_name() -> String {
-//         format!("CustomTreeMap_{}", V::schema_name())
-//     }
+impl<V> JsonSchema for CustomTreeMap<V>
+where
+    V: JsonSchema,
+{
+    fn schema_name() -> Cow<'static, str> {
+        format!("{}", V::schema_name()).into()
+    }
 
-//     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::Schema {
-//         <BTreeMap<String, V>>::json_schema(gen)
-//     }
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        <BTreeMap<String, V>>::json_schema(gen)
+    }
 
-//     // fn is_referenceable() -> bool {
-//     //     <BTreeMap<String, V>>::is_referenceable()
-//     // }
-// }
+    // fn is_referenceable() -> bool {
+    //     <BTreeMap<String, V>>::is_referenceable()
+    // }
+}
 
 
 /// Formats the sum of two numbers as string.
