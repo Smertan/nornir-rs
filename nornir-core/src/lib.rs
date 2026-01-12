@@ -1,17 +1,14 @@
 use natord::compare;
 use pyo3::prelude::*;
-// use schemars::JsonSchema;
-use schemars::{SchemaGenerator, Schema, JsonSchema, json_schema};
-
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 // use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::ops::Deref;
-use std::borrow::Cow;
 pub mod inventory;
-
 
 /// A wrapper type for strings that implements natural (alphanumeric) ordering.
 ///
@@ -82,20 +79,8 @@ impl PartialOrd for NatString {
 /// tree.insert("host10", "value10".to_string());
 /// // Keys will be ordered naturally: host1, host10
 /// ```
-#[derive(Clone, PartialEq, Eq,Serialize, Deserialize)] // JsonSchema
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)] // JsonSchema
 pub struct CustomTreeMap<V>(BTreeMap<NatString, V>);
-
-// impl<V> Deref for CustomTreeMap<V> {
-//     // Specify the Target type, which is a reference to T
-//     type Target = BTreeMap<NatString, V>;
-
-//     // Implement the deref method, returning an immutable reference
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
-// pub struct CustomTreeMap<V>(BTreeMap<NatString, V>);
-
 
 impl<V> Deref for CustomTreeMap<V> {
     // Specify the Target type, which is a reference to T
@@ -112,8 +97,8 @@ impl<V: fmt::Debug> fmt::Debug for CustomTreeMap<V> {
         if f.alternate() {
             // pretty print the map using the debug_struct builder pattern
             f.debug_struct("CustomTreeMap")
-            .field("BTreeMap", &self.0)
-            .finish()
+                .field("BTreeMap", &self.0)
+                .finish()
         } else {
             // Use write! to format the fields directly without the struct wrapper
             write!(f, "{:?}", self.0)
@@ -134,7 +119,7 @@ impl<V> CustomTreeMap<V> {
     }
 
     /// Inserts a key-value pair into the map.
-    /// 
+    ///
     /// The where statement allows for string-like types
     /// (&str, String, Cow<str>, etc.) including `numbers` that
     /// can be turned into strings using the `ToString` trait. It
@@ -145,11 +130,11 @@ impl<V> CustomTreeMap<V> {
     {
         self.0.insert(NatString::new(key.to_string()), value);
     }
-    
+
     pub fn get(&self, key: &str) -> Option<&V> {
         self.0.get(&NatString::new(key.to_string()))
     }
-    
+
     pub fn get_mut(&mut self, key: &str) -> Option<&mut V> {
         self.0.get_mut(&NatString::new(key.to_string()))
     }
@@ -157,7 +142,7 @@ impl<V> CustomTreeMap<V> {
     pub fn remove(&mut self, key: &str) -> Option<V> {
         self.0.remove(&NatString::new(key.to_string()))
     }
-    
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -173,50 +158,6 @@ impl<V> Default for CustomTreeMap<V> {
     }
 }
 
-// impl<V: Clone> Clone for CustomTreeMap<V> {
-//     fn clone(&self) -> Self {
-//         Self(self.0.clone())
-//     }
-// }
-
-// impl<V: PartialEq> PartialEq for CustomTreeMap<V> {
-//     fn eq(&self, other: &Self) -> bool {
-//         self.0.eq(&other.0)
-//     }
-// }
-
-// impl<V: Eq> Eq for CustomTreeMap<V> {}
-
-// impl<V: Serialize> Serialize for CustomTreeMap<V> {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let mut map = serializer.serialize_map(Some(self.0.len()))?;
-//         for (key, value) in &self.0 {
-//             map.serialize_entry(key.as_str(), value)?;
-//         }
-//         map.end()
-//     }
-// }
-
-// impl<'de, V> Deserialize<'de> for CustomTreeMap<V>
-// where
-//     V: Deserialize<'de>,
-// {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         let raw: BTreeMap<String, V> = BTreeMap::deserialize(deserializer)?;
-//         let mut map = CustomTreeMap::new();
-//         for (key, value) in raw {
-//             map.insert(key, value);
-//         }
-//         Ok(map)
-//     }
-// }
-
 impl<V> JsonSchema for CustomTreeMap<V>
 where
     V: JsonSchema,
@@ -228,12 +169,7 @@ where
     fn json_schema(gen: &mut SchemaGenerator) -> Schema {
         <BTreeMap<String, V>>::json_schema(gen)
     }
-
-    // fn is_referenceable() -> bool {
-    //     <BTreeMap<String, V>>::is_referenceable()
-    // }
 }
-
 
 /// Formats the sum of two numbers as string.
 #[pyfunction]
