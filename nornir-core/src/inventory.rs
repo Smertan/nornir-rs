@@ -499,6 +499,30 @@ impl DerefTarget for Groups {
     type Target = CustomTreeMap<Group>;
 }
 
+type TransformFunctionType = Arc<dyn Fn(&mut Inventory, Option<&TransformFunctionOptions>) + Send + Sync>;
+
+#[derive(Clone)]
+pub struct TransformFunction(TransformFunctionType);
+
+impl TransformFunction {
+    pub fn new<F>(func: F) -> Self
+    where
+        F: Fn(&mut Inventory, Option<&TransformFunctionOptions>) + Send + Sync + 'static,
+    {
+        TransformFunction(Arc::new(func))
+    }
+
+    pub fn call(&self, inventory: &mut Inventory, options: Option<&TransformFunctionOptions>) {
+        (self.0)(inventory, options);
+    }
+}
+
+impl fmt::Debug for TransformFunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TransformFunction({:p})", Arc::as_ptr(&self.0))
+    }
+}
+
 /// The TransformFunctionOptions struct is a wrapper for serde_json::Value, any json data is accepted.
 #[derive(
     Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro,
@@ -515,7 +539,8 @@ pub struct Inventory {
     pub groups: Option<Groups>,
     pub defaults: Option<Defaults>,
     // TODO: add transform_function
-    // transform_function: Option<TransformFunction>,
+    #[serde(skip)]
+    pub transform_function: Option<TransformFunction>,
     pub transform_function_options: Option<TransformFunctionOptions>,
 }
 
@@ -527,12 +552,21 @@ impl Inventory {
             hosts: Hosts::new(),
             groups: None,
             defaults: None,
+            transform_function: None,
             transform_function_options: None,
         }
     }
 
     pub fn builder() -> InventoryBuilder {
         InventoryBuilder::new()
+    }
+
+    /// Apply the transform function if one is set, passing the transform options
+    pub fn apply_transform(&mut self) {
+        if let Some(transform) = self.transform_function.clone() {
+            let options = self.transform_function_options.clone();
+            transform.call(self, options.as_ref());
+        }
     }
 }
 
@@ -545,6 +579,7 @@ pub struct InventoryBuilder {
     pub hosts: Option<Hosts>,
     pub groups: Option<Groups>,
     pub defaults: Option<Defaults>,
+    pub transform_function: Option<TransformFunction>,
     pub transform_function_options: Option<TransformFunctionOptions>,
 }
 
@@ -554,6 +589,7 @@ impl InventoryBuilder {
             hosts: None,
             groups: None,
             defaults: None,
+            transform_function: None,
             transform_function_options: None,
         }
     }
@@ -573,6 +609,11 @@ impl InventoryBuilder {
         self
     }
 
+    pub fn transform_function(mut self, transform: TransformFunction) -> Self {
+        self.transform_function = Some(transform);
+        self
+    }
+
     pub fn transform_function_options(mut self, options: TransformFunctionOptions) -> Self {
         self.transform_function_options = Some(options);
         self
@@ -583,6 +624,7 @@ impl InventoryBuilder {
             hosts: self.hosts.unwrap_or_default(),
             groups: self.groups,
             defaults: self.defaults,
+            transform_function: self.transform_function,
             transform_function_options: self.transform_function_options,
         }
     }

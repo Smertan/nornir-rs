@@ -93,6 +93,7 @@ fn inventory_can_model_mock_network_devices() {
         hosts,
         groups: None,
         defaults: Some(defaults.clone()),
+        transform_function: None,
         transform_function_options: Some(transform_options.clone()),
     };
 
