@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 pub mod inventory;
 
 /// A wrapper type for strings that implements natural (alphanumeric) ordering.
@@ -89,6 +89,14 @@ impl<V> Deref for CustomTreeMap<V> {
     // Implement the deref method, returning an immutable reference
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl<V> DerefMut for CustomTreeMap<V> {
+    // type Target = BTreeMap<NatString, V>;
+    // Implement the deref_mut method, returning a mutable reference
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

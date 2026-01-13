@@ -1,9 +1,10 @@
 use nornir_core::inventory::{
-    BaseBuilderHost, ConnectionOptions, Data, Defaults, Host, Hosts, Inventory, ParentGroups,
-    TransformFunctionOptions,
+    BaseBuilderHost, ConnectionOptions, Data, Defaults, Host, Hosts,
+    Inventory, ParentGroups, TransformFunctionOptions,
 };
 use serde_json::json;
 use std::sync::Arc;
+mod common;
 
 fn build_connection_options(
     hostname: &str,
@@ -138,5 +139,39 @@ fn inventory_can_model_mock_network_devices() {
     assert_eq!(
         inventory.transform_function_options.as_ref(),
         Some(&transform_options)
+    );
+}
+
+#[test]
+fn inventory_transform_translates_obfuscated_ips() {
+    let mut inventory = common::inventory_setup().expect("inventory setup failed");
+    inventory.apply_transform();
+
+    let router = inventory
+        .hosts
+        .get("router1.lab")
+        .expect("router should exist");
+    assert_eq!(router.hostname.as_deref(), Some("10.0.0.1"));
+    assert_eq!(
+        router
+            .data
+            .as_ref()
+            .and_then(|data| data.get("mgmt_ip"))
+            .and_then(|value| value.as_str()),
+        Some("10.0.0.1")
+    );
+
+    let switch = inventory
+        .hosts
+        .get("switch1.lab")
+        .expect("switch should exist");
+    assert_eq!(switch.hostname.as_deref(), Some("10.0.0.2"));
+    assert_eq!(
+        switch
+            .data
+            .as_ref()
+            .and_then(|data| data.get("mgmt_ip"))
+            .and_then(|value| value.as_str()),
+        Some("10.0.0.2")
     );
 }

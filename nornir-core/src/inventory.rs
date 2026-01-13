@@ -512,6 +512,11 @@ impl TransformFunction {
         TransformFunction(Arc::new(func))
     }
 
+    /// `(self.0)(...)` - The parentheses around self.0 explicitly
+    /// call the function pointer. gives us the Arc<dyn Fn(...)>
+    /// stored inside.
+    /// 
+    /// `self.0(...)` could also be used.
     pub fn call(&self, inventory: &mut Inventory, options: Option<&TransformFunctionOptions>) {
         (self.0)(inventory, options);
     }
