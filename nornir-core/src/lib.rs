@@ -1,11 +1,14 @@
-use std::collections::BTreeMap;
 use natord::compare;
-use std::cmp::Ordering;
-use std::ops::Deref;
-use std::fmt;
 use pyo3::prelude::*;
+use schemars::{JsonSchema, Schema, SchemaGenerator};
+// use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::fmt;
+use std::ops::{Deref, DerefMut};
 pub mod inventory;
-
 
 /// A wrapper type for strings that implements natural (alphanumeric) ordering.
 ///
@@ -26,12 +29,16 @@ pub mod inventory;
 /// assert!(s1 < s2);
 /// // s1 < s2 in natural order (2 < 10)
 /// ```
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, JsonSchema, Serialize, Deserialize)]
 pub struct NatString(String);
 
 impl NatString {
     pub fn new(s: String) -> Self {
         NatString(s)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
     }
 }
 
@@ -72,8 +79,8 @@ impl PartialOrd for NatString {
 /// tree.insert("host10", "value10".to_string());
 /// // Keys will be ordered naturally: host1, host10
 /// ```
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)] // JsonSchema
 pub struct CustomTreeMap<V>(BTreeMap<NatString, V>);
-
 
 impl<V> Deref for CustomTreeMap<V> {
     // Specify the Target type, which is a reference to T
@@ -85,13 +92,21 @@ impl<V> Deref for CustomTreeMap<V> {
     }
 }
 
+impl<V> DerefMut for CustomTreeMap<V> {
+    // type Target = BTreeMap<NatString, V>;
+    // Implement the deref_mut method, returning a mutable reference
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl<V: fmt::Debug> fmt::Debug for CustomTreeMap<V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             // pretty print the map using the debug_struct builder pattern
             f.debug_struct("CustomTreeMap")
-            .field("BTreeMap", &self.0)
-            .finish()
+                .field("BTreeMap", &self.0)
+                .finish()
         } else {
             // Use write! to format the fields directly without the struct wrapper
             write!(f, "{:?}", self.0)
@@ -111,14 +126,23 @@ impl<V> CustomTreeMap<V> {
         CustomTreeMap(BTreeMap::new())
     }
 
-    pub fn insert(&mut self, key: &str, value: V) {
+    /// Inserts a key-value pair into the map.
+    ///
+    /// The where statement allows for string-like types
+    /// (&str, String, Cow<str>, etc.) including `numbers` that
+    /// can be turned into strings using the `ToString` trait. It
+    /// makes the insertion process more flexible and easier to use.
+    pub fn insert<K>(&mut self, key: K, value: V)
+    where
+        K: ToString,
+    {
         self.0.insert(NatString::new(key.to_string()), value);
     }
-    
+
     pub fn get(&self, key: &str) -> Option<&V> {
         self.0.get(&NatString::new(key.to_string()))
     }
-    
+
     pub fn get_mut(&mut self, key: &str) -> Option<&mut V> {
         self.0.get_mut(&NatString::new(key.to_string()))
     }
@@ -126,13 +150,34 @@ impl<V> CustomTreeMap<V> {
     pub fn remove(&mut self, key: &str) -> Option<V> {
         self.0.remove(&NatString::new(key.to_string()))
     }
-    
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
+impl<V> Default for CustomTreeMap<V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
+impl<V> JsonSchema for CustomTreeMap<V>
+where
+    V: JsonSchema,
+{
+    fn schema_name() -> Cow<'static, str> {
+        format!("{}", V::schema_name()).into()
+    }
+
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        <BTreeMap<String, V>>::json_schema(gen)
+    }
+}
 
 /// Formats the sum of two numbers as string.
 #[pyfunction]
