@@ -1,8 +1,9 @@
 use nornir_core::inventory::{
-    Inventory, TransformFunction, TransformFunctionOptions, Hosts, Host,
+    ConnectionManager, Hosts, Host, Inventory, TransformFunction, TransformFunctionOptions,
     BaseBuilderHost, Data,
 };
 use serde_json::json;
+use std::sync::Arc;
 
 pub fn inventory_setup() -> Result<Inventory, Box<dyn std::error::Error>> {
     let transform_options: TransformFunctionOptions = serde_json::from_value(json!({
@@ -65,6 +66,7 @@ pub fn inventory_setup() -> Result<Inventory, Box<dyn std::error::Error>> {
         defaults: None,
         transform_function: Some(transform_function),
         transform_function_options: Some(transform_options),
+        connections: Arc::new(ConnectionManager::default()),
     };
     Ok(inventory)
 }

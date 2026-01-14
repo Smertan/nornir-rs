@@ -1,4 +1,5 @@
 use crate::CustomTreeMap;
+use dashmap::DashMap;
 use nornir_core_derive::{DerefMacro, DerefMutMacro};
 use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
@@ -547,7 +548,61 @@ pub struct Inventory {
     #[serde(skip)]
     pub transform_function: Option<TransformFunction>,
     pub transform_function_options: Option<TransformFunctionOptions>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub connections: Arc<ConnectionManager>,
 }
+
+pub trait Connection: Send + Sync + fmt::Debug{
+    fn is_alive(&self) -> bool;
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct ConnectionKey {
+    pub hostname: String,
+    pub connection_type: String,
+}
+
+impl ConnectionKey {
+    pub fn new(hostname: impl Into<String>, connection_type: impl Into<String>) -> Self {
+        Self {
+            hostname: hostname.into(),
+            connection_type: connection_type.into(),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct ConnectionManager {
+    inner: DashMap<ConnectionKey, Arc<dyn Connection>>,
+}
+
+impl ConnectionManager {
+    pub fn get(&self, key: &ConnectionKey) -> Option<Arc<dyn Connection>> {
+        self.inner.get(key).map(|entry| entry.value().clone())
+    }
+
+    pub fn insert(&self, key: ConnectionKey, connection: Arc<dyn Connection>) {
+        self.inner.insert(key, connection);
+    }
+
+    pub fn get_or_create<F, C>(&self, key: ConnectionKey, ctor: F) -> Arc<dyn Connection>
+    where
+        F: FnOnce() -> C,
+        C: Connection + 'static,
+    {
+        if let Some(connection) = self.get(&key) {
+            return connection;
+        }
+
+        let connection = Arc::new(ctor()) as Arc<dyn Connection>;
+        self.inner
+            .entry(key)
+            .or_insert_with(|| connection.clone());
+        connection
+    }
+}
+
 
 impl BaseMethods for Inventory {}
 
@@ -559,6 +614,7 @@ impl Inventory {
             defaults: None,
             transform_function: None,
             transform_function_options: None,
+            connections: Arc::new(ConnectionManager::default()),
         }
     }
 
@@ -586,6 +642,7 @@ pub struct InventoryBuilder {
     pub defaults: Option<Defaults>,
     pub transform_function: Option<TransformFunction>,
     pub transform_function_options: Option<TransformFunctionOptions>,
+    pub connections: Option<Arc<ConnectionManager>>,
 }
 
 impl InventoryBuilder {
@@ -596,6 +653,7 @@ impl InventoryBuilder {
             defaults: None,
             transform_function: None,
             transform_function_options: None,
+            connections: None,
         }
     }
 
@@ -624,6 +682,11 @@ impl InventoryBuilder {
         self
     }
 
+    pub fn connections(mut self, connections: ConnectionManager) -> Self {
+        self.connections = Some(Arc::new(connections));
+        self
+    }
+
     pub fn build(self) -> Inventory {
         Inventory {
             hosts: self.hosts.unwrap_or_default(),
@@ -631,6 +694,9 @@ impl InventoryBuilder {
             defaults: self.defaults,
             transform_function: self.transform_function,
             transform_function_options: self.transform_function_options,
+            connections: self
+                .connections
+                .unwrap_or_else(|| Arc::new(ConnectionManager::default())),
         }
     }
 }
