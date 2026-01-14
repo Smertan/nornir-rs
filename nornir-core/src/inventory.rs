@@ -1,9 +1,10 @@
+use crate::CustomTreeMap;
 use nornir_core_derive::{DerefMacro, DerefMutMacro};
 use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::sync::Arc;
 
 pub trait BaseMethods {
     fn schema() -> String
@@ -41,10 +42,10 @@ pub trait BaseBuilderHost {
     fn data(self, data: Data) -> Self;
 
     /// Updates the connection options and returns the updated builder.
-    fn connection_options(self, options: ConnectionOptions) -> Self;
+    fn connection_options(self, name: String, options: ConnectionOptions) -> Self;
 
     /// Updates the defaults and returns the updated builder.
-    fn defaults(self, defaults: Defaults) -> Self;
+    fn defaults(self, defaults: &Arc<Defaults>) -> Self;
 
     /// Builds the struct from the updated builder and returns final struct object.
     fn build(self) -> Self::Output;
@@ -65,6 +66,12 @@ pub struct ConnectionOptions {
     pub extras: Option<Extras>,
 }
 
+impl Default for ConnectionOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConnectionOptions {
     pub fn new() -> Self {
         ConnectionOptions {
@@ -83,18 +90,30 @@ impl DerefTarget for Extras {
 }
 
 /// The DataExtra struct is a wrapper for serde_json::Value, any json data is accepted.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro,
+)]
 pub struct Extras(serde_json::Value);
 
-impl DerefTarget for ParentGroups{
+impl DerefTarget for ParentGroups {
     type Target = Vec<String>;
 }
 
 /// The ParentGroups struct is a wrapped vector of strings.
 ///
-/// The ParentGroups struct implements Deref and DerefMut for easy access to the underlying vector.
+/// It stores a list of strings representing the groups the host
+/// belongs to.
+///
+/// The ParentGroups struct implements Deref and DerefMut for easy
+/// access to the underlying vector.
 #[derive(Debug, Clone, Serialize, PartialEq, JsonSchema, DerefMacro, DerefMutMacro)]
 pub struct ParentGroups(Vec<String>);
+
+impl Default for ParentGroups {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ParentGroups {
     pub fn new() -> Self {
@@ -136,14 +155,18 @@ impl<'de> Visitor<'de> for ParentGroupsVisitor {
 
     /// This method is used to handle custom deserialization logic for
     /// sequences. It returns a list of unique strings from the sequence.
+    ///
+    /// The vector implementation ensures that duplicate strings are not added to the
+    /// and preserves the order of the first occurrence of each string.
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,
     {
-        let mut groups: HashSet<String> = HashSet::new();
+        let mut groups = Vec::new();
         while let Some(value) = seq.next_element()? {
-            // println!("{value}");
-            groups.insert(value);
+            if !groups.contains(&value) {
+                groups.push(value);
+            }
         }
 
         Ok(ParentGroups(groups.into_iter().collect()))
@@ -154,17 +177,19 @@ impl DerefTarget for Defaults {
     type Target = serde_json::Value;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro,
+)]
 pub struct Defaults(serde_json::Value);
-
 
 impl DerefTarget for Data {
     type Target = serde_json::Value;
 }
 
-
 /// The Data struct is a wrapper for serde_json::Value, any json data is accepted.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro,
+)]
 pub struct Data(serde_json::Value);
 
 impl Data {
@@ -184,8 +209,8 @@ pub struct Host {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<ConnectionOptions>,
-    pub defaults: Option<Defaults>,
+    pub connection_options: Option<CustomTreeMap<ConnectionOptions>>,
+    pub defaults: Option<Arc<Defaults>>,
 }
 
 impl Host {
@@ -219,8 +244,8 @@ pub struct HostBuilder {
     platform: Option<String>,
     groups: Option<ParentGroups>,
     data: Option<Data>,
-    connection_options: Option<ConnectionOptions>,
-    defaults: Option<Defaults>,
+    connection_options: Option<CustomTreeMap<ConnectionOptions>>,
+    defaults: Option<Arc<Defaults>>,
 }
 
 impl HostBuilder {
@@ -278,13 +303,19 @@ impl BaseBuilderHost for HostBuilder {
         self
     }
 
-    fn connection_options(mut self, options: ConnectionOptions) -> Self {
-        self.connection_options = Some(options);
+    fn connection_options(mut self, name: String, options: ConnectionOptions) -> Self {
+        if self.connection_options.is_none() {
+            self.connection_options = Some(CustomTreeMap::new());
+        }
+        self.connection_options
+            .as_mut()
+            .unwrap()
+            .insert(name, options);
         self
     }
 
-    fn defaults(mut self, defaults: Defaults) -> Self {
-        self.defaults = Some(defaults);
+    fn defaults(mut self, defaults: &Arc<Defaults>) -> Self {
+        self.defaults = Some(Arc::clone(defaults));
         self
     }
 
@@ -304,6 +335,7 @@ impl BaseBuilderHost for HostBuilder {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Group {
     pub hostname: Option<String>,
     pub port: Option<u16>,
@@ -312,8 +344,14 @@ pub struct Group {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<ConnectionOptions>,
-    pub defaults: Option<Defaults>,
+    pub connection_options: Option<CustomTreeMap<ConnectionOptions>>,
+    pub defaults: Option<Arc<Defaults>>,
+}
+
+impl Default for Group {
+    fn default() -> Group {
+        Group::new()
+    }
 }
 
 impl Group {
@@ -343,8 +381,8 @@ pub struct GroupBuilder {
     pub platform: Option<String>,
     pub groups: Option<ParentGroups>,
     pub data: Option<Data>,
-    pub connection_options: Option<ConnectionOptions>,
-    pub defaults: Option<Defaults>,
+    pub connection_options: Option<CustomTreeMap<ConnectionOptions>>,
+    pub defaults: Option<Arc<Defaults>>,
 }
 
 impl BaseBuilderHost for GroupBuilder {
@@ -380,12 +418,18 @@ impl BaseBuilderHost for GroupBuilder {
         self.data = Some(data);
         self
     }
-    fn connection_options(mut self, options: ConnectionOptions) -> Self {
-        self.connection_options = Some(options);
+    fn connection_options(mut self, name: String, options: ConnectionOptions) -> Self {
+        if self.connection_options.is_none() {
+            self.connection_options = Some(CustomTreeMap::new());
+        }
+        self.connection_options
+            .as_mut()
+            .unwrap()
+            .insert(name, options);
         self
     }
-    fn defaults(mut self, defaults: Defaults) -> Self {
-        self.defaults = Some(defaults);
+    fn defaults(mut self, defaults: &Arc<Defaults>) -> Self {
+        self.defaults = Some(Arc::clone(defaults));
         self
     }
     fn build(self) -> Group {
@@ -419,20 +463,25 @@ impl GroupBuilder {
     }
 }
 
-pub type HostsTarget = HashMap<String, Host>;
+pub type HostsTarget = CustomTreeMap<Host>;
 
 impl DerefTarget for Hosts {
-    type Target = HashMap<String, Host>;
+    type Target = CustomTreeMap<Host>;
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
 #[serde(deny_unknown_fields)]
 pub struct Hosts(HostsTarget);
 
+impl Default for Hosts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Hosts {
     pub fn new() -> Self {
-        Hosts(HashMap::new())
+        Hosts(CustomTreeMap::new())
     }
 
     pub fn add_host(&mut self, host: Host) {
@@ -443,30 +492,177 @@ impl Hosts {
 
 impl BaseMethods for Hosts {}
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, DerefMacro, DerefMutMacro)]
+pub struct Groups(CustomTreeMap<Group>);
+
+impl DerefTarget for Groups {
+    type Target = CustomTreeMap<Group>;
+}
+
+type TransformFunctionType = Arc<dyn Fn(&mut Inventory, Option<&TransformFunctionOptions>) + Send + Sync>;
+
+#[derive(Clone)]
+pub struct TransformFunction(TransformFunctionType);
+
+impl TransformFunction {
+    pub fn new<F>(func: F) -> Self
+    where
+        F: Fn(&mut Inventory, Option<&TransformFunctionOptions>) + Send + Sync + 'static,
+    {
+        TransformFunction(Arc::new(func))
+    }
+
+    /// `(self.0)(...)` - The parentheses around self.0 explicitly
+    /// call the function pointer. gives us the Arc<dyn Fn(...)>
+    /// stored inside.
+    /// 
+    /// `self.0(...)` could also be used.
+    pub fn call(&self, inventory: &mut Inventory, options: Option<&TransformFunctionOptions>) {
+        (self.0)(inventory, options);
+    }
+}
+
+impl fmt::Debug for TransformFunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TransformFunction({:p})", Arc::as_ptr(&self.0))
+    }
+}
+
+/// The TransformFunctionOptions struct is a wrapper for serde_json::Value, any json data is accepted.
+#[derive(
+    Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, DerefMacro, DerefMutMacro,
+)]
+pub struct TransformFunctionOptions(serde_json::Value);
+
+impl DerefTarget for TransformFunctionOptions {
+    type Target = serde_json::Value;
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct Inventory {
+    pub hosts: Hosts,
+    pub groups: Option<Groups>,
+    pub defaults: Option<Defaults>,
+    // TODO: add transform_function
+    #[serde(skip)]
+    pub transform_function: Option<TransformFunction>,
+    pub transform_function_options: Option<TransformFunctionOptions>,
+}
+
+impl BaseMethods for Inventory {}
+
+impl Inventory {
+    pub fn new() -> Inventory {
+        Inventory {
+            hosts: Hosts::new(),
+            groups: None,
+            defaults: None,
+            transform_function: None,
+            transform_function_options: None,
+        }
+    }
+
+    pub fn builder() -> InventoryBuilder {
+        InventoryBuilder::new()
+    }
+
+    /// Apply the transform function if one is set, passing the transform options
+    pub fn apply_transform(&mut self) {
+        if let Some(transform) = self.transform_function.clone() {
+            let options = self.transform_function_options.clone();
+            transform.call(self, options.as_ref());
+        }
+    }
+}
+
+impl Default for Inventory {
+    fn default() -> Self {
+        Inventory::new()
+    }
+}
+pub struct InventoryBuilder {
+    pub hosts: Option<Hosts>,
+    pub groups: Option<Groups>,
+    pub defaults: Option<Defaults>,
+    pub transform_function: Option<TransformFunction>,
+    pub transform_function_options: Option<TransformFunctionOptions>,
+}
+
+impl InventoryBuilder {
+    pub fn new() -> InventoryBuilder {
+        InventoryBuilder {
+            hosts: None,
+            groups: None,
+            defaults: None,
+            transform_function: None,
+            transform_function_options: None,
+        }
+    }
+
+    pub fn hosts(mut self, hosts: Hosts) -> Self {
+        self.hosts = Some(hosts);
+        self
+    }
+
+    pub fn groups(mut self, groups: Groups) -> Self {
+        self.groups = Some(groups);
+        self
+    }
+
+    pub fn defaults(mut self, defaults: Defaults) -> Self {
+        self.defaults = Some(defaults);
+        self
+    }
+
+    pub fn transform_function(mut self, transform: TransformFunction) -> Self {
+        self.transform_function = Some(transform);
+        self
+    }
+
+    pub fn transform_function_options(mut self, options: TransformFunctionOptions) -> Self {
+        self.transform_function_options = Some(options);
+        self
+    }
+
+    pub fn build(self) -> Inventory {
+        Inventory {
+            hosts: self.hosts.unwrap_or_default(),
+            groups: self.groups,
+            defaults: self.defaults,
+            transform_function: self.transform_function,
+            transform_function_options: self.transform_function_options,
+        }
+    }
+}
+
+impl Default for InventoryBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn create_dummy_hosts() -> Result<Hosts, std::io::Error> {
-        let mut hosts = Hosts(HashMap::new());
-        // hosts.insert("hosts".to_string(), HashMap::new());
+        let mut hosts = Hosts(CustomTreeMap::new());
+        // hosts.insert("hosts".to_string(), CustomTreeMap::new());
         for i in 1..=10 {
             let mut groups = ParentGroups::new();
             groups.push("cisco".to_string());
-            let host = Host::builder(
-                &format!("host{}.example.com", i)
-            )
-            .port(2200 + i as u16)
-            .username(&format!("user{}", i))
-            .password(&format!("password{}", i))
-            .platform(if i % 2 == 0 { "linux" } else { "windows" })
-            .data(Data(serde_json::json!(vec![format!(
-                "data for host {}",
-                i
-            )])))
-            .groups(groups)
-            .connection_options(ConnectionOptions::new())
-            .build();
+            let host = Host::builder(&format!("host{}.example.com", i))
+                .port(2200 + i as u16)
+                .username(&format!("user{}", i))
+                .password(&format!("password{}", i))
+                .platform(if i % 2 == 0 { "linux" } else { "windows" })
+                .data(Data(serde_json::json!(vec![format!(
+                    "data for host {}",
+                    i
+                )])))
+                .groups(groups)
+                .connection_options(String::from("Cisco"), ConnectionOptions::new())
+                .build();
 
             let hostname = host.name.clone();
 
@@ -496,19 +692,17 @@ mod tests {
 
         // Add 10 hosts to the hosts map with dummy data
         for i in 1..=10 {
-            let host = Host::builder(
-                &format!("host{}.example.com", i)
-            )
-            .port(2200 + i as u16)
-            .username(&format!("user{}", i))
-            .password(&format!("password{}", i))
-            .platform(if i % 2 == 0 { "linux" } else { "windows" })
-            .data(Data(serde_json::json!(vec![format!(
-                "data for host {}",
-                i
-            )])))
-            .connection_options(ConnectionOptions::new())
-            .build();
+            let host = Host::builder(&format!("host{}.example.com", i))
+                .port(2200 + i as u16)
+                .username(&format!("user{}", i))
+                .password(&format!("password{}", i))
+                .platform(if i % 2 == 0 { "linux" } else { "windows" })
+                .data(Data(serde_json::json!(vec![format!(
+                    "data for host {}",
+                    i
+                )])))
+                .connection_options(String::from("Juniper"), ConnectionOptions::new())
+                .build();
 
             hosts.add_host(host);
         }
@@ -534,6 +728,48 @@ mod tests {
         assert_eq!(deserialized.sort(), ParentGroups(groups).sort());
     }
 
+    #[test]
+    fn test_parent_groups_deduplication() {
+        // Test that duplicate groups are removed during deserialization
+        let groups_with_duplicates = vec![
+            "cisco".to_string(),
+            "juniper".to_string(),
+            "cisco".to_string(), // duplicate
+            "arista".to_string(),
+            "juniper".to_string(), // duplicate
+            "cisco".to_string(),   // duplicate
+        ];
+
+        let serialized = serde_json::to_string(&groups_with_duplicates).unwrap();
+        let deserialized: ParentGroups = serde_json::from_str(&serialized).unwrap();
+
+        // Should only contain unique values in order of first occurrence
+        assert_eq!(deserialized.len(), 3);
+        assert_eq!(deserialized[0], "cisco");
+        assert_eq!(deserialized[1], "juniper");
+        assert_eq!(deserialized[2], "arista");
+    }
+
+    #[test]
+    fn test_parent_groups_preserves_order() {
+        // Test that the order of first occurrence is preserved
+        let groups = vec![
+            "zebra".to_string(),
+            "apple".to_string(),
+            "zebra".to_string(), // duplicate
+            "banana".to_string(),
+        ];
+
+        let serialized = serde_json::to_string(&groups).unwrap();
+        let deserialized: ParentGroups = serde_json::from_str(&serialized).unwrap();
+
+        // Should preserve order of first occurrence
+        assert_eq!(deserialized.len(), 3);
+        assert_eq!(deserialized[0], "zebra");
+        assert_eq!(deserialized[1], "apple");
+        assert_eq!(deserialized[2], "banana");
+    }
+
     /// Tests the ParentGroups deserialization with an error.
     ///
     /// The error message is expected to be "Groups should be an array of strings for use with `ParentGroups`"
@@ -551,4 +787,6 @@ mod tests {
             }
         }
     }
+
+    // TODO: Create a test to verify the Host defaults deserialization
 }
