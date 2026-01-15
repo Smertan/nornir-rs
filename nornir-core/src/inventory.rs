@@ -5,7 +5,7 @@ use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub trait BaseMethods {
     fn schema() -> String
@@ -500,7 +500,8 @@ impl DerefTarget for Groups {
     type Target = CustomTreeMap<Group>;
 }
 
-type TransformFunctionType = Arc<dyn Fn(&mut Inventory, Option<&TransformFunctionOptions>) + Send + Sync>;
+type TransformFunctionType =
+    Arc<dyn Fn(&mut Inventory, Option<&TransformFunctionOptions>) + Send + Sync>;
 
 #[derive(Clone)]
 pub struct TransformFunction(TransformFunctionType);
@@ -516,7 +517,7 @@ impl TransformFunction {
     /// `(self.0)(...)` - The parentheses around self.0 explicitly
     /// call the function pointer. gives us the Arc<dyn Fn(...)>
     /// stored inside.
-    /// 
+    ///
     /// `self.0(...)` could also be used.
     pub fn call(&self, inventory: &mut Inventory, options: Option<&TransformFunctionOptions>) {
         (self.0)(inventory, options);
@@ -553,8 +554,13 @@ pub struct Inventory {
     pub connections: Arc<ConnectionManager>,
 }
 
-pub trait Connection: Send + Sync + fmt::Debug{
+pub trait Connection
+where
+    Self: Send + Sync + fmt::Debug,
+{
     fn is_alive(&self) -> bool;
+
+    fn close(&mut self) -> ConnectionKey;
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -572,21 +578,24 @@ impl ConnectionKey {
     }
 }
 
+// TODO: Write documentation the ConnectionManager struct and its methods.
 #[derive(Debug, Default)]
 pub struct ConnectionManager {
-    inner: DashMap<ConnectionKey, Arc<dyn Connection>>,
+    connections_map: DashMap<ConnectionKey, Arc<Mutex<dyn Connection>>>,
 }
 
 impl ConnectionManager {
-    pub fn get(&self, key: &ConnectionKey) -> Option<Arc<dyn Connection>> {
-        self.inner.get(key).map(|entry| entry.value().clone())
+    pub fn get(&self, key: &ConnectionKey) -> Option<Arc<Mutex<dyn Connection>>> {
+        self.connections_map
+            .get(key)
+            .map(|entry| entry.value().clone())
     }
 
-    pub fn insert(&self, key: ConnectionKey, connection: Arc<dyn Connection>) {
-        self.inner.insert(key, connection);
+    pub fn insert(&self, key: ConnectionKey, connection: Arc<Mutex<dyn Connection>>) {
+        self.connections_map.insert(key, connection);
     }
 
-    pub fn get_or_create<F, C>(&self, key: ConnectionKey, ctor: F) -> Arc<dyn Connection>
+    pub fn get_or_create<F, C>(&self, key: ConnectionKey, ctor: F) -> Arc<Mutex<dyn Connection>>
     where
         F: FnOnce() -> C,
         C: Connection + 'static,
@@ -595,14 +604,33 @@ impl ConnectionManager {
             return connection;
         }
 
-        let connection = Arc::new(ctor()) as Arc<dyn Connection>;
-        self.inner
+        let connection = Arc::new(Mutex::new(ctor())) as Arc<Mutex<dyn Connection>>;
+        self.connections_map
             .entry(key)
             .or_insert_with(|| connection.clone());
         connection
     }
-}
 
+    /// Close the connection associated with the given key and remove
+    /// it from `connections_map`.
+    pub fn close_connection(&self, key: &ConnectionKey) {
+        if let Some((_, connection)) = self.connections_map.remove(key) {
+            if let Ok(mut connection) = connection.lock() {
+                connection.close();
+            }
+        }
+    }
+
+    /// Close all connections in `connections_map` and then clear the map.
+    pub fn close_all_connections(&self) {
+        self.connections_map.iter().for_each(|entry| {
+            if let Ok(mut connection) = entry.value().lock() {
+                connection.close();
+            }
+        });
+        self.connections_map.clear();
+    }
+}
 
 impl BaseMethods for Inventory {}
 

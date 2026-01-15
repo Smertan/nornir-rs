@@ -1,5 +1,5 @@
 use nornir_core::inventory::{
-    BaseBuilderHost, ConnectionManager, ConnectionOptions, ConnectionKey, Data, Defaults, Host,
+    BaseBuilderHost, ConnectionKey, ConnectionManager, ConnectionOptions, Data, Defaults, Host,
     Hosts, Inventory, ParentGroups, TransformFunctionOptions,
 };
 use serde_json::json;
@@ -186,6 +186,10 @@ fn connection_manager_creates_connections_lazily() {
     impl nornir_core::inventory::Connection for TestConnection {
         fn is_alive(&self) -> bool {
             true
+        }
+
+        fn close(&mut self) -> ConnectionKey {
+            ConnectionKey::new("router1.lab", "ssh2")
         }
     }
 
