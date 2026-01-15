@@ -67,6 +67,16 @@ pub struct ConnectionOptions {
     pub extras: Option<Extras>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedConnectionParams {
+    pub hostname: String,
+    pub port: Option<u16>,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub platform: Option<String>,
+    pub extras: Option<Extras>,
+}
+
 impl Default for ConnectionOptions {
     fn default() -> Self {
         Self::new()
@@ -212,6 +222,9 @@ pub struct Host {
     pub data: Option<Data>,
     pub connection_options: Option<CustomTreeMap<ConnectionOptions>>,
     pub defaults: Option<Arc<Defaults>>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub resolved_connection_params: CustomTreeMap<ResolvedConnectionParams>,
 }
 
 impl Host {
@@ -227,10 +240,64 @@ impl Host {
             data: None,
             connection_options: None,
             defaults: None,
+            resolved_connection_params: CustomTreeMap::new(),
         }
     }
     pub fn builder(name: &str) -> HostBuilder {
         HostBuilder::new(name)
+    }
+
+    pub fn resolve_connection_params(
+        &mut self,
+        connection_type: &str,
+    ) -> &ResolvedConnectionParams {
+        if self
+            .resolved_connection_params
+            .get(connection_type)
+            .is_none()
+        {
+            let mut resolved = ResolvedConnectionParams {
+                hostname: self
+                    .hostname
+                    .clone()
+                    .unwrap_or_else(|| self.name.clone()),
+                port: self.port,
+                username: self.username.clone(),
+                password: self.password.clone(),
+                platform: self.platform.clone(),
+                extras: None,
+            };
+
+            if let Some(options_map) = &self.connection_options {
+                if let Some(options) = options_map.get(connection_type) {
+                    if let Some(hostname) = options.hostname.clone() {
+                        resolved.hostname = hostname;
+                    }
+                    if options.port.is_some() {
+                        resolved.port = options.port;
+                    }
+                    if options.username.is_some() {
+                        resolved.username = options.username.clone();
+                    }
+                    if options.password.is_some() {
+                        resolved.password = options.password.clone();
+                    }
+                    if options.platform.is_some() {
+                        resolved.platform = options.platform.clone();
+                    }
+                    if options.extras.is_some() {
+                        resolved.extras = options.extras.clone();
+                    }
+                }
+            }
+
+            self.resolved_connection_params
+                .insert(connection_type.to_string(), resolved);
+        }
+
+        self.resolved_connection_params
+            .get(connection_type)
+            .expect("resolved params should be present after insertion")
     }
 }
 
@@ -332,6 +399,7 @@ impl BaseBuilderHost for HostBuilder {
             data: self.data,
             connection_options: self.connection_options,
             defaults: self.defaults,
+            resolved_connection_params: CustomTreeMap::new(),
         }
     }
 }
@@ -560,6 +628,8 @@ where
 {
     fn is_alive(&self) -> bool;
 
+    fn open(&mut self, params: &ResolvedConnectionParams) -> Result<(), String>;
+
     fn close(&mut self) -> ConnectionKey;
 }
 
@@ -595,6 +665,8 @@ impl ConnectionManager {
         self.connections_map.insert(key, connection);
     }
 
+    // TODO: Include the logic to use the pluginManager to load and create connections
+    // with the use on the config held in the Nornir Struct. 
     pub fn get_or_create<F, C>(&self, key: ConnectionKey, ctor: F) -> Arc<Mutex<dyn Connection>>
     where
         F: FnOnce() -> C,
@@ -629,6 +701,10 @@ impl ConnectionManager {
             }
         });
         self.connections_map.clear();
+    }
+
+    pub fn open_connection(&self, _key: &ConnectionKey) -> Option<Arc<Mutex<dyn Connection>>> {
+        todo!()
     }
 }
 

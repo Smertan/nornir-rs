@@ -188,6 +188,13 @@ fn connection_manager_creates_connections_lazily() {
             true
         }
 
+        fn open(
+            &mut self,
+            _params: &nornir_core::inventory::ResolvedConnectionParams,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+
         fn close(&mut self) -> ConnectionKey {
             ConnectionKey::new("router1.lab", "ssh2")
         }
