@@ -10,6 +10,10 @@ use std::fmt;
 use std::ops::{Deref, DerefMut};
 // pub mod inventory
 
+pub trait DerefTarget {
+    type Target;
+}
+
 /// A wrapper type for strings that implements natural (alphanumeric) ordering.
 ///
 /// `NatString` wraps a `String` and provides custom ordering behavior where
@@ -31,6 +35,34 @@ use std::ops::{Deref, DerefMut};
 /// ```
 #[derive(PartialEq, Eq, Clone, JsonSchema, Serialize, Deserialize)]
 pub struct NatString(String);
+
+impl Deref for NatString {
+    type Target = String;
+
+    // Implement the deref method, returning an immutable reference
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for NatString {
+    // Implement the deref method, returning an immutable reference
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<NatString> for String {
+    fn from(value: NatString) -> Self {
+        value.0
+    }
+}
+
+impl From<&NatString> for String {
+    fn from(value: &NatString) -> Self {
+        value.0.clone()
+    }
+}
 
 impl NatString {
     pub fn new(s: String) -> Self {
@@ -93,7 +125,6 @@ impl<V> Deref for CustomTreeMap<V> {
 }
 
 impl<V> DerefMut for CustomTreeMap<V> {
-    // type Target = BTreeMap<NatString, V>;
     // Implement the deref_mut method, returning a mutable reference
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
