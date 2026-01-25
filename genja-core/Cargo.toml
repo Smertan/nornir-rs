@@ -1,19 +1,20 @@
 [package]
-name = "nornir-core"
+name = "genja-core"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "nornir_core"
+name = "genja_core"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
 log = "0.4.27"
 natord = "1.0.9"
-nornir-core-derive = { version = "0.1.0", path = "../nornir-core-derive" }
+genja-core-derive = { version = "0.1.0", path = "../genja-core-derive" }
 pyo3 = "0.24.0"
 schemars = "1.0.4"
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 serde_json = "1.0.142"
 serde_yaml = "0.9.34"
+dashmap = "5.5.3"

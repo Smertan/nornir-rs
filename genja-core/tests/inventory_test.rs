@@ -1,8 +1,9 @@
-use nornir_core::inventory::{
-    BaseBuilderHost, ConnectionOptions, Data, Defaults, Host, Hosts,
-    Inventory, ParentGroups, TransformFunctionOptions,
+use genja_core::inventory::{
+    BaseBuilderHost, ConnectionKey, ConnectionManager, ConnectionOptions, Data, Defaults, Host,
+    Hosts, Inventory, ParentGroups, TransformFunctionOptions,
 };
 use serde_json::json;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 mod common;
 
@@ -96,6 +97,7 @@ fn inventory_can_model_mock_network_devices() {
         defaults: Some(defaults.clone()),
         transform_function: None,
         transform_function_options: Some(transform_options.clone()),
+        connections: Arc::new(ConnectionManager::default()),
     };
 
     assert_eq!(inventory.hosts.len(), 2);
@@ -174,4 +176,43 @@ fn inventory_transform_translates_obfuscated_ips() {
             .and_then(|value| value.as_str()),
         Some("10.0.0.2")
     );
+}
+
+#[test]
+fn connection_manager_creates_connections_lazily() {
+    #[derive(Debug)]
+    struct TestConnection;
+
+    impl genja_core::inventory::Connection for TestConnection {
+        fn is_alive(&self) -> bool {
+            true
+        }
+
+        fn open(
+            &mut self,
+            _params: &genja_core::inventory::ResolvedConnectionParams,
+        ) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn close(&mut self) -> ConnectionKey {
+            ConnectionKey::new("router1.lab", "ssh2")
+        }
+    }
+
+    let manager = ConnectionManager::default();
+    let key = ConnectionKey::new("router1.lab", "ssh2");
+    let created = AtomicUsize::new(0);
+
+    let first = manager.get_or_create(key.clone(), || {
+        created.fetch_add(1, Ordering::SeqCst);
+        TestConnection
+    });
+    let second = manager.get_or_create(key, || {
+        created.fetch_add(1, Ordering::SeqCst);
+        TestConnection
+    });
+
+    assert_eq!(created.load(Ordering::SeqCst), 1);
+    assert!(Arc::ptr_eq(&first, &second));
 }
