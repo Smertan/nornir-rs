@@ -1,5 +1,5 @@
 [package]
-name = "nornir-core-derive"
+name = "genja-core-derive"
 version = "0.1.0"
 edition = "2024"
 

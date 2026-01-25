@@ -46,6 +46,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "genja-core"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "genja-core-derive",
+ "log",
+ "natord",
+ "pyo3",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+]
+
+[[package]]
+name = "genja-core-derive"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -126,29 +149,6 @@ name = "natord"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "308d96db8debc727c3fd9744aac51751243420e46edf401010908da7f8d5e57c"
-
-[[package]]
-name = "nornir-core"
-version = "0.1.0"
-dependencies = [
- "dashmap",
- "log",
- "natord",
- "nornir-core-derive",
- "pyo3",
- "schemars",
- "serde",
- "serde_json",
- "serde_yaml",
-]
-
-[[package]]
-name = "nornir-core-derive"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
 
 [[package]]
 name = "once_cell"

@@ -8,7 +8,11 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
-pub mod inventory;
+// pub mod inventory
+
+pub trait DerefTarget {
+    type Target;
+}
 
 /// A wrapper type for strings that implements natural (alphanumeric) ordering.
 ///
@@ -23,7 +27,7 @@ pub mod inventory;
 /// # Examples
 ///
 /// ```
-/// # use nornir_core::NatString;
+/// # use genja_core::NatString;
 /// let s1 = NatString::new("file2".to_string());
 /// let s2 = NatString::new("file10".to_string());
 /// assert!(s1 < s2);
@@ -31,6 +35,34 @@ pub mod inventory;
 /// ```
 #[derive(PartialEq, Eq, Clone, JsonSchema, Serialize, Deserialize)]
 pub struct NatString(String);
+
+impl Deref for NatString {
+    type Target = String;
+
+    // Implement the deref method, returning an immutable reference
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for NatString {
+    // Implement the deref method, returning an immutable reference
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<NatString> for String {
+    fn from(value: NatString) -> Self {
+        value.0
+    }
+}
+
+impl From<&NatString> for String {
+    fn from(value: &NatString) -> Self {
+        value.0.clone()
+    }
+}
 
 impl NatString {
     pub fn new(s: String) -> Self {
@@ -73,7 +105,7 @@ impl PartialOrd for NatString {
 /// ## Examples
 ///
 /// ```
-/// # use nornir_core::CustomTreeMap;
+/// # use genja_core::CustomTreeMap;
 /// let mut tree = CustomTreeMap::new();
 /// tree.insert("host1", "value1".to_string());
 /// tree.insert("host10", "value10".to_string());
@@ -93,7 +125,6 @@ impl<V> Deref for CustomTreeMap<V> {
 }
 
 impl<V> DerefMut for CustomTreeMap<V> {
-    // type Target = BTreeMap<NatString, V>;
     // Implement the deref_mut method, returning a mutable reference
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -187,7 +218,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn nornir_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn genja_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     Ok(())
 }

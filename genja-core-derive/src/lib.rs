@@ -4,7 +4,7 @@
 //!
 //! # Example
 //! ```
-//! use nornir_core_derive::{DerefMacro, DerefMutMacro};
+//! use genja_core_derive::{DerefMacro, DerefMutMacro};
 //!
 //! pub trait DerefTarget {
 //!     type Target;

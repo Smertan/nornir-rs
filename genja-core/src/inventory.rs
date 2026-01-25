@@ -1,6 +1,6 @@
 use crate::CustomTreeMap;
 use dashmap::DashMap;
-use nornir_core_derive::{DerefMacro, DerefMutMacro};
+use genja_core_derive::{DerefMacro, DerefMutMacro};
 use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -257,10 +257,7 @@ impl Host {
             .is_none()
         {
             let mut resolved = ResolvedConnectionParams {
-                hostname: self
-                    .hostname
-                    .clone()
-                    .unwrap_or_else(|| self.name.clone()),
+                hostname: self.hostname.clone().unwrap_or_else(|| self.name.clone()),
                 port: self.port,
                 username: self.username.clone(),
                 password: self.password.clone(),
@@ -666,7 +663,7 @@ impl ConnectionManager {
     }
 
     // TODO: Include the logic to use the pluginManager to load and create connections
-    // with the use on the config held in the Nornir Struct. 
+    // with the use on the config held in the Nornir Struct.
     pub fn get_or_create<F, C>(&self, key: ConnectionKey, ctor: F) -> Arc<Mutex<dyn Connection>>
     where
         F: FnOnce() -> C,

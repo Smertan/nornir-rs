@@ -1,4 +1,4 @@
-use nornir_core::inventory::{
+use genja_core::inventory::{
     BaseBuilderHost, ConnectionKey, ConnectionManager, ConnectionOptions, Data, Defaults, Host,
     Hosts, Inventory, ParentGroups, TransformFunctionOptions,
 };
@@ -183,14 +183,14 @@ fn connection_manager_creates_connections_lazily() {
     #[derive(Debug)]
     struct TestConnection;
 
-    impl nornir_core::inventory::Connection for TestConnection {
+    impl genja_core::inventory::Connection for TestConnection {
         fn is_alive(&self) -> bool {
             true
         }
 
         fn open(
             &mut self,
-            _params: &nornir_core::inventory::ResolvedConnectionParams,
+            _params: &genja_core::inventory::ResolvedConnectionParams,
         ) -> Result<(), String> {
             Ok(())
         }

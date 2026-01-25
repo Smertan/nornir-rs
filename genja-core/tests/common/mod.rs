@@ -1,4 +1,4 @@
-use nornir_core::inventory::{
+use genja_core::inventory::{
     BaseBuilderHost, ConnectionManager, Data, Host, Hosts, Inventory, TransformFunction,
     TransformFunctionOptions,
 };
