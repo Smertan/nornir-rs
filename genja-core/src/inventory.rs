@@ -1,6 +1,6 @@
 use crate::CustomTreeMap;
 use dashmap::DashMap;
-use nornir_core_derive::{DerefMacro, DerefMutMacro};
+use genja_core_derive::{DerefMacro, DerefMutMacro};
 use schemars::{schema_for, JsonSchema};
 use serde::de::{Error, SeqAccess, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};

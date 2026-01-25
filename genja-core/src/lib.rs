@@ -9,8 +9,7 @@ pub use types::{CustomTreeMap, NatString};
 /// Represents a Nornir inventory and runtime environment.
 ///
 /// `host_ids` is equal to a Vec of NatString's due to the wrapper used
-/// to store the CustomTreeMap's keys. The method `into` converts it
-/// to a string
+/// to store the CustomTreeMap's keys.
 #[derive(Debug)]
 pub struct Nornir {
     inventory: Arc<Inventory>,

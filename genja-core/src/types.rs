@@ -27,7 +27,7 @@ pub trait DerefTarget {
 /// # Examples
 ///
 /// ```
-/// # use nornir_core::NatString;
+/// # use genja_core::NatString;
 /// let s1 = NatString::new("file2".to_string());
 /// let s2 = NatString::new("file10".to_string());
 /// assert!(s1 < s2);
@@ -105,7 +105,7 @@ impl PartialOrd for NatString {
 /// ## Examples
 ///
 /// ```
-/// # use nornir_core::CustomTreeMap;
+/// # use genja_core::CustomTreeMap;
 /// let mut tree = CustomTreeMap::new();
 /// tree.insert("host1", "value1".to_string());
 /// tree.insert("host10", "value10".to_string());
@@ -218,7 +218,7 @@ fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn nornir_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn genja_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
     Ok(())
 }
