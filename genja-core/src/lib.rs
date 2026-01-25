@@ -11,7 +11,7 @@ pub use types::{CustomTreeMap, NatString};
 /// `host_ids` is equal to a Vec of NatString's due to the wrapper used
 /// to store the CustomTreeMap's keys.
 #[derive(Debug)]
-pub struct Nornir {
+pub struct Genja {
     inventory: Arc<Inventory>,
     host_ids: Arc<Vec<NatString>>,
     // config: Arc<Config>,
@@ -20,7 +20,7 @@ pub struct Nornir {
     // runner: Option<Arc<dyn RunnerPlugin>>,
 }
 
-impl Nornir {
+impl Genja {
     /// The host_ids are a Vec of owned NatString's, therefore they need
     /// to be cloned from the inventory's CustomTreeMap's keys.
     pub fn new(inventory: Inventory) -> Self {
